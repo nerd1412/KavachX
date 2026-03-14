@@ -73,8 +73,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-async function processGovernance(prompt, domain) {
+async function processGovernance(prompt, domain, retryCount = 0) {
     const platform = getPlatformName(domain);
+    console.log(`🔍 Kavach Evaluation [Try ${retryCount + 1}]: ${prompt.substring(0, 30)}... on ${platform}`);
+
     try {
         const response = await fetch(`${KAVACH_SERVER_URL}/api/v1/governance/simulate`, {
             method: 'POST',
@@ -82,31 +84,55 @@ async function processGovernance(prompt, domain) {
                 'Content-Type': 'application/json',
                 'x-api-key': API_KEY
             },
-                body: JSON.stringify({
-                    model_id: "kavach-sentinel-v1",
-                    session_id: await getSessionId(),
-                    input_data: { 
-                        prompt: prompt,
-                        source: "browser_extension",
-                        platform: platform
-                    },
-                    prediction: { text: "Pending Kavach Review" },
-                    confidence: 0.95,
-                    context: { 
-                        domain: "external_governance", 
-                        browser_source: domain,
-                        platform: platform
-                    }
-                })
+            body: JSON.stringify({
+                model_id: "kavach-sentinel-v1",
+                session_id: await getSessionId(),
+                input_data: { 
+                    prompt: prompt,
+                    source: "browser_extension",
+                    platform: platform
+                },
+                prediction: { text: "Pending Kavach Review" },
+                confidence: 0.95,
+                context: { 
+                    domain: "external_governance", 
+                    browser_source: domain,
+                    platform: platform
+                }
+            })
         });
 
+        if (!response.ok) {
+            console.error(`❌ Kavach Engine Error: ${response.status} ${response.statusText}`);
+            // If it's a 503 (Render sleeping) or connection issue, retry once
+            if ((response.status >= 500 || response.status === 404) && retryCount < 1) {
+                console.log("🔄 Retrying connection to Kavach...");
+                await new Promise(r => setTimeout(r, 2000));
+                return processGovernance(prompt, domain, retryCount + 1);
+            }
+            throw new Error(`Kavach API error ${response.status}`);
+        }
+
         const result = await response.json();
+        console.log("✅ Kavach Response Received:", result.enforcement_decision);
         handleDecision(result, prompt, platform);
         return result;
         
     } catch (error) {
         console.error("❌ Kavach Governance Connection Error:", error);
-        return { enforcement_decision: "PASS", error: true }; // Allow on error to not block user productivity
+        
+        // Final retry on network error (likely server cold start)
+        if (retryCount < 1) {
+            console.log("🔄 Attempting final retry after network error...");
+            await new Promise(r => setTimeout(r, 3000));
+            return processGovernance(prompt, domain, retryCount + 1);
+        }
+
+        return { 
+            enforcement_decision: "PASS", 
+            error: true,
+            reason: "Could not connect to governance engine"
+        };
     }
 }
 
