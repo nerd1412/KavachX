@@ -67,11 +67,14 @@ export default function EngineerDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
+        console.log("🛡️ KavachX: Fetching dashboard data...");
         const [m, inf, s] = await Promise.all([
           modelsAPI.list(),
           governanceAPI.getInferences({ limit: 30 }),
           dashboardAPI.getStats(),
         ])
+        console.log("🛡️ KavachX Received Inferences:", inf.data?.length);
+        console.log("🛡️ KavachX Received Stats:", s.data);
         if (m.data) setModels(m.data)
         if (inf.data) setInferences(inf.data)
         if (s.data) setStats(s.data)
@@ -225,9 +228,9 @@ export default function EngineerDashboard() {
               )}
               {displayInferences.slice(0, 20).map(inf => {
                 const prompt = inf.input_data?.prompt || inf.input_data?.text || '—'
-                const reason = inf.explanation?.reason || '—'
+                const reason = inf.explanation?.reason || 'No reason provided' // Ensure reason is never blank
                 const platform = inf.input_data?.platform || inf.context_metadata?.platform || 'Universal'
-                const policyTriggered = inf.explanation?.policy_triggered || (inf.policy_violations?.[0]?.policy_name) || (reason === 'No policy violation detected.' ? '—' : 'System Rule')
+                const policyTriggered = inf.explanation?.policy_triggered || (inf.policy_violations?.[0]?.policy_name) || (reason === 'No policy violation detected.' ? '—' : 'System Rule') // Ensure policy is never blank
                 
                 return (
                   <tr key={inf.id}>

@@ -73,9 +73,9 @@
         console.log(`🛡️ KavachX: Intercepting ${type} for validation: "${promptData.text.substring(0, 50)}..."`);
         isValidating = true;
 
-        // stop the original event
+        // stop the original event to validate
         e.preventDefault();
-        e.stopPropagation();
+        // e.stopPropagation(); 
 
         try {
             chrome.runtime.sendMessage({ 
@@ -107,10 +107,11 @@
                     } else if (type === 'keydown') {
                         // For modern React/Next.js apps like Gemini/ChatGPT
                         const promptEl = promptData.element;
-                        const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                        const enterUp = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                        promptEl.dispatchEvent(enterDown);
-                        promptEl.dispatchEvent(enterUp);
+                        promptEl.focus(); 
+                        const enterEv = new KeyboardEvent('keydown', { 
+                            key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true 
+                        });
+                        promptEl.dispatchEvent(enterEv);
                     }
                     setTimeout(() => { bypassValidation = false; }, 200);
                 }
