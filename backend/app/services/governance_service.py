@@ -55,42 +55,133 @@ class GovernanceService:
             "context": request.context or {}
         }
         
-        # 1. Safety Scan for raw text (Shadow AI detection)
+        # ===================================================================
+        # INTENT-BASED MONITORING LAYER
+        # Only trigger policy signals when there is clear NEGATIVE INTENT.
+        # Normal analytical queries → PASS (no signals injected).
+        # ===================================================================
+        input_text = str(request.input_data.get("prompt", request.input_data.get("text", ""))).lower()
+        output_text = str(request.prediction.get("content", request.prediction.get("text", ""))).lower()
+        platform = str(request.input_data.get("platform", request.context.get("platform", "unknown")))
+
+        # ── CATEGORY 1: BLOCK triggers (clear policy violations) ──
+        
+        # 1a. Financial Bias — pincode/caste proxy discrimination
+        if ("loan" in input_text or "credit" in input_text) and ("632001" in input_text or "pincode" in input_text):
+            # Only block if there's a discriminatory action context
+            if any(w in input_text for w in ["reject", "deny", "exclude", "block", "refuse"]):
+                request.input_data["caste_proxy_score"] = 0.85
+                request.context["domain"] = "finance"
+
+        # 1b. Financial Policy Bypass — explicit attempts to override DTI limits
+        if ("loan" in input_text or "credit" in input_text) and any(w in input_text for w in ["ignore", "bypass", "override", "skip", "circumvent"]):
+            if any(w in input_text for w in ["debt", "income", "ratio", "dti", "limit", "cap"]):
+                request.input_data["debt_ratio"] = 0.55
+                request.context["domain"] = "finance"
+
+        # 1c. Healthcare Privacy Breach — accessing patient data without consent
+        if any(w in input_text for w in ["patient", "abdm", "medical record", "health record"]):
+            if any(w in input_text for w in ["extract", "download", "export", "share", "leak", "send"]):
+                request.context["domain"] = "healthcare"
+                request.context["abdm"] = True
+                request.input_data["personal_data_used"] = True
+                request.input_data["consent_verified"] = False
+
+        # 1d. Student Surveillance — profiling minors without consent
+        if any(w in input_text for w in ["student", "minor", "child"]):
+            if any(w in input_text for w in ["track", "profile", "surveil", "monitor behavior", "spy"]):
+                request.context["domain"] = "education"
+                request.input_data["continuous_monitoring"] = True
+                request.input_data["parental_consent"] = False
+
+        # ── CATEGORY 2: HUMAN_REVIEW triggers (ambiguous risk, needs judgment) ──
+        
+        # 2a. DTI ratio checks (legitimate compliance query)
+        if ("loan" in input_text or "credit" in input_text) and ("debt" in input_text or "income" in input_text or "ratio" in input_text):
+            if "debt_ratio" not in request.input_data:  # Don't override if BLOCK already set
+                request.input_data["debt_ratio"] = 0.45
+                request.context["domain"] = "finance"
+
+        # 2b. Worker deactivation / gig economy decisions
+        if any(w in input_text for w in ["deactivate", "terminate", "fire", "suspend"]):
+            if any(w in input_text for w in ["worker", "driver", "rider", "employee", "account"]):
+                request.context["algorithmic_deactivation"] = True
+
+        # 2c. Insurance claim decisions needing explainability
+        if ("insurance" in input_text or "claim" in input_text) and any(w in input_text for w in ["reject", "deny", "approve", "process", "decide"]):
+            request.context["domain"] = "insurance"
+            request.input_data["explainability_score"] = 0.25
+
+        # 2d. Low confidence prompt (user expresses uncertainty)
+        if any(w in input_text for w in ["not sure", "unsure", "uncertain", "confused about"]):
+            request.confidence = 0.45
+
+        # ── CATEGORY 3: ALERT triggers (monitoring, no action needed) ──
+        # Analytical technical queries now PASS by default (no signals injected)
+        # to align with user requirement: "Likely allow unless a real policy risk exists"
+        
+        # 3a. Model drift alert — Only trigger if it's a NEGATIVE INTENT or CRITICAL levels
+        # (Previously this triggered ALERT, now we just log it in context without score)
+        if "model" in input_text and any(w in input_text for w in ["drift", "degrade", "degradation", "psi"]):
+            request.context["performance_check"] = True
+
+        # 3b. Economic equity analysis — explicit disparity measurement
+        # (Previously this triggered ALERT, now we just log it in context)
+        if any(w in input_text for w in ["disparity", "bias report", "equity gap", "inclusion audit"]):
+            if any(w in input_text for w in ["analyze", "report", "measure", "assess", "check"]):
+                request.context["equity_analysis"] = True
+
+        # ── NO triggers for normal/benign prompts ──
+        # "Analyze the economic disparity gap" → triggers 3b (ALERT) only  
+        # "Run a performance check" → NO trigger (normal query = PASS)
+        # "Help me write code" → NO trigger (normal query = PASS)
+        # "What is machine learning?" → NO trigger (normal query = PASS)
+
+        # Safety scan — always run for toxicity/injection detection
         if not request.input_data.get("toxicity_score") and not request.input_data.get("prompt_injection_score"):
-            input_text = str(request.input_data.get("prompt", request.input_data.get("text", "")))
-            output_text = str(request.prediction.get("content", request.prediction.get("text", "")))
             safety_results = self.safety_scanner.analyze_exchange(input_text, output_text)
             request.input_data.update(safety_results)
             inference_data["input_data"] = request.input_data
 
         flag_dicts = [f.model_dump() for f in fairness_flags]
         
-        # 2. Policy Evaluation (Pass 1)
+        # Policy Evaluation (Pass 1 — without risk score)
         policy_violations, _ = self.policy_engine.evaluate(inference_data, flag_dicts, 0.0)
         
-        # 3. Risk Scoring (Derived from violations + flags)
+        # Risk Scoring (derived from violations + flags)
         risk_score = self.risk_scorer.compute(request.confidence, flag_dicts, policy_violations, request.context or {})
         risk_level = self.risk_scorer.get_risk_level(risk_score)
         
-        # 4. Final Enforcement (Check if Risk Score itself triggers a policy block)
-        # We can now just check the risk-based rules manually or do a focused second pass if needed,
-        # but let's keep it clean by updating the decision if risk is too high.
+        # Final Enforcement (Pass 2 — check if risk score triggers additional policies)
         violations_with_risk, final_decision = self.policy_engine.evaluate(inference_data, flag_dicts, risk_score)
-        policy_violations = violations_with_risk # Ensure final response has the risk violation if triggered
-        
+        policy_violations = violations_with_risk
+
+        # ── Build human-readable reason ──
+        if policy_violations:
+            primary_reason = policy_violations[0].get("message", "Policy violation detected")
+            policy_name = policy_violations[0].get("policy_name", "Unknown Policy")
+        elif risk_score > 0.60:
+            primary_reason = f"Elevated Risk ({int(risk_score*100)}%) — monitoring advised"
+            policy_name = "Systemic Risk Threshold"
+        else:
+            primary_reason = "No policy violation detected."
+            policy_name = "None"
+
         # Explainability
         domain = (request.context or {}).get("domain", "default")
         explanation = self.explainability_engine.explain(request.input_data, request.prediction, request.confidence, domain)
+        explanation["reason"] = primary_reason
+        explanation["policy_triggered"] = policy_name
 
         inference_id = str(uuid.uuid4())
         processing_ms = round((time.time() - start_time) * 1000, 2)
 
-        # Context metadata mapping
-        context_metadata = {**(request.context or {}), "processing_ms": processing_ms}
+        # Context metadata
+        context_metadata = {**(request.context or {}), "processing_ms": processing_ms, "platform": platform}
         if is_simulation:
             context_metadata["source"] = "simulation"
 
-        # Persist event
+        # Persist inference event
         event = InferenceEvent(
             id=inference_id,
             model_id=model.id,
@@ -103,18 +194,34 @@ class GovernanceService:
             policy_violations=policy_violations,
             explanation=explanation,
             context_metadata=context_metadata,
+            session_id=request.session_id,
         )
         db.add(event)
 
-        # Audit Logs
+        # ── Audit Logs ──
         audit_actor = request.model_id if not is_simulation else f"simulation/{domain}"
+        prompt_text = str(request.input_data.get("prompt", request.input_data.get("text", "")))[:200]
+        
+        audit_details = {
+            "risk_score": risk_score, 
+            "reason": primary_reason,
+            "prompt": prompt_text,
+            "policy_triggered": policy_name,
+            "decision": final_decision.value,
+            "platform": platform,
+            "session_id": request.session_id,
+            "violations": [v.get("policy_name") for v in policy_violations],
+            "fairness_flags": len(fairness_flags), 
+            "scenario": domain if is_simulation else None
+        }
+
         db.add(AuditLog(
             event_type="inference_evaluated",
             entity_id=inference_id,
             entity_type="inference",
             actor=audit_actor,
-            action=f"evaluated with decision={final_decision.value}",
-            details={"risk_score": risk_score, "violations": len(policy_violations), "fairness_flags": len(fairness_flags), "scenario": domain if is_simulation else None},
+            action=f"decision={final_decision.value}",
+            details=audit_details,
             risk_level=risk_level.value,
         ))
 
@@ -125,7 +232,7 @@ class GovernanceService:
                 entity_type="ai_model",
                 actor="governance_engine",
                 action="blocked inference due to policy violation",
-                details={"inference_id": inference_id, "violations": policy_violations[:3]},
+                details={"inference_id": inference_id, "reason": primary_reason, "prompt": prompt_text, "violations": policy_violations[:3]},
                 risk_level="critical"
             ))
         elif policy_violations:
@@ -135,7 +242,7 @@ class GovernanceService:
                 entity_type="inference",
                 actor=audit_actor, 
                 action="policy violation detected",
-                details={"violations": policy_violations[:3]}, 
+                details={"reason": primary_reason, "prompt": prompt_text, "violations": policy_violations[:3]}, 
                 risk_level=risk_level.value
             ))
 
@@ -176,7 +283,7 @@ class GovernanceService:
                 "risk_level": risk_level.value,
                 "violation_count": len(policy_violations),
                 "fairness_flags": len(fairness_flags),
-                "shadow_ai_detected": context_metadata.get("shadow_ai_detected", False)
+                "platform": platform
             },
             explanation=ExplanationOutput(**explanation),
             timestamp=datetime.now(timezone.utc),

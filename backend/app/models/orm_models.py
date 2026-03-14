@@ -53,6 +53,7 @@ class InferenceEvent(Base):
     explanation = Column(JSON)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     context_metadata = Column(JSON, default=dict)
+    session_id = Column(String, index=True)
 
 
 class AuditLog(Base):
