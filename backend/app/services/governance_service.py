@@ -4,6 +4,8 @@ from typing import Dict, Any, Tuple
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import asyncio
+import traceback
 
 from app.models.schemas import InferenceRequest, GovernanceResult, EnforcementDecision, ExplanationOutput
 from app.models.orm_models import InferenceEvent, AIModel, AuditLog
@@ -312,14 +314,16 @@ class GovernanceService:
         dashboard_cache.invalidate("dashboard_stats")
 
         # Broadcast real-time update over WebSocket
-        from app.services.websocket_manager import manager
-        import asyncio
-        asyncio.create_task(manager.broadcast({
-            "type": "new_inference",
-            "inference_id": inference_id,
-            "risk_score": risk_score,
-            "enforcement_decision": final_decision.value,
-        }))
+        try:
+            from app.services.websocket_manager import manager
+            asyncio.create_task(manager.broadcast({
+                "type": "new_inference",
+                "inference_id": inference_id,
+                "risk_score": risk_score,
+                "enforcement_decision": final_decision.value,
+            }))
+        except Exception as ws_err:
+            print(f"DEBUG: WebSocket broadcast failed (ignoring): {ws_err}")
 
         return GovernanceResult(
             inference_id=inference_id,
