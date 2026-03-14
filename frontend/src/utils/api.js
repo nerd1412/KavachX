@@ -1,8 +1,8 @@
 import axios from 'axios'
 
 const isProd = import.meta.env.PROD
-const BASE = import.meta.env.VITE_API_URL || (isProd ? '/api/v1' : 'http://localhost:8005/api/v1')
-// Log base for debugging sync issues
+// Monolithic deployment: API is served from the same origin under /api/v1
+const BASE = import.meta.env.VITE_API_URL || '/api/v1'
 console.log(`[KavachX] API Base: ${BASE}`);
 
 export const api = axios.create({

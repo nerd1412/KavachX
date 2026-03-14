@@ -65,16 +65,19 @@
         document.getElementById('kavach-close-modal').onclick = () => modal.remove();
     };
 
-    const handleIntercept = async (e, type) => {
+    const handleIntercept = async (e, type, targetElement) => {
         if (bypassValidation || isValidating) return;
 
         const promptData = findPrompt();
-        if (!promptData || promptData.text.length < 5) return;
+        if (!promptData || promptData.text.length < 3) {
+            console.log("🛡️ KavachX: No valid prompt found to validate.");
+            return;
+        }
 
-        console.log("🛡️ KavachX: Intercepting for validation...");
+        console.log(`🛡️ KavachX: Intercepting ${type} for validation: "${promptData.text.substring(0, 50)}..."`);
         isValidating = true;
 
-        // stop the event
+        // stop the original event
         e.preventDefault();
         e.stopPropagation();
 
@@ -85,39 +88,48 @@
                 domain: window.location.hostname
             }, (response) => {
                 isValidating = false;
-                if (response && response.enforcement_decision === 'BLOCK') {
-                    const reason = response.explanation?.reason || "Policy violation";
-                    const policy = response.explanation?.policy_triggered || "Corporate Governance";
+                if (!response) {
+                    console.error("🛡️ KavachX: No response from background script.");
+                    bypassValidation = true;
+                    // Re-trigger original action
+                    if (type === 'click') targetElement.click();
+                    return;
+                }
+
+                console.log("🛡️ KavachX: Governance decision:", response.enforcement_decision);
+
+                if (response.enforcement_decision === 'BLOCK') {
+                    const reason = response.explanation?.reason || response.reason || "Corporate safety policy violation";
+                    const policy = response.explanation?.policy_triggered || "Safety & Compliance";
                     showBlockingModal(reason, policy);
                 } else {
                     // Re-trigger the submission
+                    console.log("🛡️ KavachX: Allowing prompt submission.");
                     bypassValidation = true;
                     if (type === 'click') {
-                        e.target.click();
-                    } else {
-                        const enterEvent = new KeyboardEvent('keydown', {
-                            key: 'Enter',
-                            code: 'Enter',
-                            keyCode: 13,
-                            which: 13,
-                            bubbles: true,
-                            cancelable: true
-                        });
-                        e.target.dispatchEvent(enterEvent);
+                        targetElement.click();
+                    } else if (type === 'keydown') {
+                        // For modern React/Next.js apps like Gemini/ChatGPT
+                        const promptEl = promptData.element;
+                        const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+                        const enterUp = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+                        promptEl.dispatchEvent(enterDown);
+                        promptEl.dispatchEvent(enterUp);
                     }
-                    setTimeout(() => { bypassValidation = false; }, 100);
+                    setTimeout(() => { bypassValidation = false; }, 200);
                 }
             });
         } catch (err) {
+            console.error("🛡️ KavachX: Error in message flow:", err);
             isValidating = false;
-            bypassValidation = true; // allow through on extension errors
+            bypassValidation = true; 
         }
     };
 
     // 1. Keyboard Interceptor
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !bypassValidation) {
-            handleIntercept(e, 'keydown');
+            handleIntercept(e, 'keydown', e.target);
         }
     }, true);
 
@@ -126,7 +138,11 @@
         if (bypassValidation) return;
         const btn = e.target.closest('button') || e.target.closest('[role="button"]');
         if (btn) {
-            handleIntercept(e, 'click');
+            // Check if it looks like a send button
+            const isSend = btn.querySelector('svg') || /send|ask|submit/i.test(btn.innerText + btn.ariaLabel);
+            if (isSend) {
+                handleIntercept(e, 'click', btn);
+            }
         }
     }, true);
 

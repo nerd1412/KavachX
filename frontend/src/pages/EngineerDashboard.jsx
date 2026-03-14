@@ -79,7 +79,7 @@ export default function EngineerDashboard() {
       }
     }
     load()
-    const iv = setInterval(load, 15000)
+    const iv = setInterval(load, 5000)
     
     // Live WebSocket connection
     const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? `${window.location.origin}/api/v1` : 'http://localhost:8005/api/v1')

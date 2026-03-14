@@ -259,6 +259,10 @@ class GovernanceService:
             ))
 
         await db.commit()
+        
+        # Invalidate dashboard cache
+        from app.db.cache import dashboard_cache
+        dashboard_cache.invalidate("dashboard_stats")
 
         # Broadcast real-time update over WebSocket
         from app.services.websocket_manager import manager
