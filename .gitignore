@@ -24,3 +24,4 @@ yarn-error.log*
 # IDEs
 .vscode/
 .idea/
+*.zip
