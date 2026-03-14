@@ -78,28 +78,31 @@ async function processGovernance(prompt, domain, retryCount = 0) {
     console.log(`🔍 Kavach Evaluation [Try ${retryCount + 1}]: ${prompt.substring(0, 30)}... on ${platform}`);
 
     try {
+        const payload = {
+            model_id: "kavach-sentinel-v1",
+            session_id: await getSessionId(),
+            input_data: { 
+                prompt: prompt,
+                source: "browser_extension",
+                platform: platform
+            },
+            prediction: { text: "Pending Kavach Review" },
+            confidence: 0.95,
+            context: { 
+                domain: "external_governance", 
+                browser_source: domain,
+                platform: platform
+            }
+        };
+        console.log("🛡️ KavachX: Sending payload to server:", JSON.stringify(payload, null, 2));
+
         const response = await fetch(`${KAVACH_SERVER_URL}/api/v1/governance/simulate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': API_KEY
             },
-            body: JSON.stringify({
-                model_id: "kavach-sentinel-v1",
-                session_id: await getSessionId(),
-                input_data: { 
-                    prompt: prompt,
-                    source: "browser_extension",
-                    platform: platform
-                },
-                prediction: { text: "Pending Kavach Review" },
-                confidence: 0.95,
-                context: { 
-                    domain: "external_governance", 
-                    browser_source: domain,
-                    platform: platform
-                }
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {

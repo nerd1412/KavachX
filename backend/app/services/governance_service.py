@@ -29,7 +29,27 @@ class GovernanceService:
         model: AIModel,
         is_simulation: bool = False
     ) -> GovernanceResult:
+        import traceback
+        try:
+            return await self._evaluate_internal(request, db, model, is_simulation)
+        except Exception as e:
+            print(f"🛑 CRITICAL GOVERNANCE FAILURE: {str(e)}")
+            print(traceback.format_exc())
+            raise e
+
+    async def _evaluate_internal(
+        self, 
+        request: InferenceRequest, 
+        db: AsyncSession, 
+        model: AIModel,
+        is_simulation: bool = False
+    ) -> GovernanceResult:
         start_time = time.time()
+        
+        # Ensure context and input_data are dicts
+        if request.context is None: request.context = {}
+        if request.input_data is None: request.input_data = {}
+        if request.prediction is None: request.prediction = {}
         
         # Fairness evaluation
         raw_flags = self.fairness_monitor.evaluate(request.input_data, request.prediction, request.confidence)
@@ -62,7 +82,15 @@ class GovernanceService:
         # ===================================================================
         input_text = str(request.input_data.get("prompt", request.input_data.get("text", ""))).lower()
         output_text = str(request.prediction.get("content", request.prediction.get("text", ""))).lower()
-        platform = str(request.input_data.get("platform", request.context.get("platform", "unknown")))
+        
+        # Safe platform detection
+        platform = "unknown"
+        if request.input_data and "platform" in request.input_data:
+            platform = str(request.input_data["platform"])
+        elif request.context and "platform" in request.context:
+            platform = str(request.context["platform"])
+        
+        print(f"DEBUG: Platform detected as {platform}")
 
         # ── CATEGORY 1: BLOCK triggers (clear policy violations) ──
         
@@ -181,6 +209,9 @@ class GovernanceService:
         if is_simulation:
             context_metadata["source"] = "simulation"
 
+        # Prepare prompt text for logging/audit
+        prompt_text = str(request.input_data.get("prompt", request.input_data.get("text", "")))[:200]
+        
         print(f"DEBUG: Creating InferenceEvent {inference_id} for prompt: {prompt_text[:50]}...")
         event = InferenceEvent(
             id=inference_id,
@@ -201,7 +232,6 @@ class GovernanceService:
 
         # ── Audit Logs ──
         audit_actor = request.model_id if not is_simulation else f"simulation/{domain}"
-        prompt_text = str(request.input_data.get("prompt", request.input_data.get("text", "")))[:200]
         
         audit_details = {
             "risk_score": risk_score, 
