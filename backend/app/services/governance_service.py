@@ -181,7 +181,7 @@ class GovernanceService:
         if is_simulation:
             context_metadata["source"] = "simulation"
 
-        # Persist inference event
+        print(f"DEBUG: Creating InferenceEvent {inference_id} for prompt: {prompt_text[:50]}...")
         event = InferenceEvent(
             id=inference_id,
             model_id=model.id,
@@ -197,6 +197,7 @@ class GovernanceService:
             session_id=request.session_id,
         )
         db.add(event)
+        print(f"DEBUG: InferenceEvent added to session.")
 
         # ── Audit Logs ──
         audit_actor = request.model_id if not is_simulation else f"simulation/{domain}"
@@ -245,6 +246,16 @@ class GovernanceService:
                 details={"reason": primary_reason, "prompt": prompt_text, "violations": policy_violations[:3]}, 
                 risk_level=risk_level.value
             ))
+        else:
+            db.add(AuditLog(
+                event_type="inference_passed", 
+                entity_id=inference_id, 
+                entity_type="inference",
+                actor=audit_actor, 
+                action="inference passed all checks",
+                details={"prompt": prompt_text, "platform": platform}, 
+                risk_level="low"
+            ))
 
         fairness_failed = [f for f in fairness_flags if not f.passed]
         if fairness_failed:
@@ -258,7 +269,13 @@ class GovernanceService:
                 risk_level="high"
             ))
 
-        await db.commit()
+        try:
+            await db.commit()
+            print(f"DEBUG: Database commit SUCCESS for {inference_id}")
+        except Exception as e:
+            await db.rollback()
+            print(f"DEBUG: Database commit FAILED: {str(e)}")
+            raise e
         
         # Invalidate dashboard cache
         from app.db.cache import dashboard_cache

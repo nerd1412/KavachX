@@ -23,9 +23,6 @@
             'textarea[placeholder*="Ask"]', 
             'textarea[placeholder*="Type"]', 
             'textarea[placeholder*="Send"]',
-            'div[data-placeholder*="Prompt"]',
-            'div[data-placeholder*="Message"]',
-            'div[aria-placeholder*="Prompt"]',
             'textarea', 'input[type="text"]'
         ];
         

@@ -21,6 +21,8 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     blocked = (await db.execute(select(func.count(InferenceEvent.id)).where(InferenceEvent.enforcement_decision == "BLOCK"))).scalar() or 0
     alert_ct = (await db.execute(select(func.count(InferenceEvent.id)).where(InferenceEvent.enforcement_decision == "ALERT"))).scalar() or 0
     pass_ct = (await db.execute(select(func.count(InferenceEvent.id)).where(InferenceEvent.enforcement_decision == "PASS"))).scalar() or 0
+    review_ct = (await db.execute(select(func.count(InferenceEvent.id)).where(InferenceEvent.enforcement_decision == "HUMAN_REVIEW"))).scalar() or 0
+    
     avg_risk = float((await db.execute(select(func.avg(InferenceEvent.risk_score)))).scalar() or 0.0)
     active_models = (await db.execute(select(func.count(AIModel.id)).where(AIModel.status == "active"))).scalar() or 0
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -30,9 +32,15 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     pass_rate = (pass_ct / total) if total > 0 else 1.0
     
     result = {
-        "total_inferences": total, "blocked_count": blocked, "alert_count": alert_ct,
-        "pass_rate": round(pass_rate, 3), "avg_risk_score": round(avg_risk, 3),
-        "active_models": active_models, "policy_violations_today": violations_today,
+        "total_inferences": total, 
+        "blocked_count": blocked, 
+        "alert_count": alert_ct,
+        "pass_count": pass_ct,
+        "review_count": review_ct,
+        "pass_rate": round(pass_rate, 3), 
+        "avg_risk_score": round(avg_risk, 3),
+        "active_models": active_models, 
+        "policy_violations_today": violations_today,
         "fairness_issues_detected": fairness_issues,
     }
     await dashboard_cache.set("dashboard_stats", result)

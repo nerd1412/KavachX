@@ -60,18 +60,21 @@ const TOOLTIP_STYLE = {
 export default function EngineerDashboard() {
   const [models, setModels] = useState([])
   const [inferences, setInferences] = useState([])
+  const [stats, setStats] = useState({ total_inferences: 0, blocked_count: 0, alert_count: 0, active_models: 0 })
   const [loading, setLoading] = useState(true)
   const col = useChartColors()
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [m, inf] = await Promise.all([
+        const [m, inf, s] = await Promise.all([
           modelsAPI.list(),
           governanceAPI.getInferences({ limit: 30 }),
+          dashboardAPI.getStats(),
         ])
         if (m.data) setModels(m.data)
         if (inf.data) setInferences(inf.data)
+        if (s.data) setStats(s.data)
       } catch (err) {
         console.error("Failed to load engineer dashboard data:", err)
       } finally {
@@ -136,10 +139,10 @@ export default function EngineerDashboard() {
 
       <div className="stats-row">
         {[
-          { label: 'Registered Models', value: displayModels.length, icon: Database, color: 'var(--accent)', bg: 'var(--accent-light)' },
-          { label: 'Active Models', value: displayModels.filter(m => m.status === 'active').length, icon: CheckCircle, color: 'var(--green)', bg: 'var(--green-light)' },
-          { label: 'Suspended', value: displayModels.filter(m => m.status === 'suspended').length, icon: AlertCircle, color: 'var(--red)', bg: 'var(--red-light)' },
-          { label: 'Inferences (recent)', value: displayInferences.length, icon: Cpu, color: 'var(--purple)', bg: 'var(--purple-light)' },
+          { label: 'Total Inferences', value: stats.total_inferences ?? 0, icon: Cpu, color: 'var(--purple)', bg: 'var(--purple-light)' },
+          { label: 'Allowed (PASS)', value: stats.pass_count ?? 0, icon: CheckCircle, color: 'var(--green)', bg: 'var(--green-light)' },
+          { label: 'Blocked (Critical)', value: stats.blocked_count ?? 0, icon: AlertCircle, color: 'var(--red)', bg: 'var(--red-light)' },
+          { label: 'Human Reviews', value: stats.review_count ?? 0, icon: AlertCircle, color: 'var(--orange)', bg: 'rgba(251, 146, 60, 0.1)' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="stat-card" style={{ '--stat-color': color, '--stat-bg': bg }}>
             <div className="stat-icon"><Icon size={18} /></div>
