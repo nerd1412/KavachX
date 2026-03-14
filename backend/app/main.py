@@ -1,11 +1,12 @@
 """
 KavachX AI Governance Platform - Main Application Entry Point v2.0
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 
-from app.db.database import init_db
+from app.db.database import init_db, get_db
 from app.api import governance, policies, audit, dashboard, models, ws, proxy, settings as settings_api
 print(f"DEBUG: GOVERNANCE MODULE LOADED FROM: {governance.__file__}")
 from app.api import auth as auth_router
@@ -45,11 +46,15 @@ app.include_router(proxy.router, prefix="/api/v1/proxy", tags=["Proxy"])
 
 
 @app.get("/health")
-async def health_check():
+async def health_check(dbDirect: AsyncSession = Depends(get_db)):
+    from app.models.orm_models import InferenceEvent
+    from sqlalchemy import func, select
+    total = (await dbDirect.execute(select(func.count(InferenceEvent.id)))).scalar() or 0
     return {
         "status": "healthy",
         "service": "KavachX Governance Engine",
         "version": "2.0.0-mvp",
+        "db_records": total
     }
 
 # --- MONOLITHIC FRONTEND SERVING ---

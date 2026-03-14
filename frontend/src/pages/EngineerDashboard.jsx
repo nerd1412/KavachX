@@ -82,8 +82,9 @@ export default function EngineerDashboard() {
     const iv = setInterval(load, 5000)
     
     // Live WebSocket connection
-    const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? `${window.location.origin}/api/v1` : 'http://localhost:8005/api/v1')
-    const wsBase = apiBase.replace(/^http/, 'ws').replace('/api/v1', '')
+    const apiBase = import.meta.env.VITE_API_URL || '/api/v1'
+    const absoluteApiBase = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`
+    const wsBase = absoluteApiBase.replace(/^http/, 'ws').replace('/api/v1', '')
     const wsURL = `${wsBase}/api/v1/ws/stream`
     const ws = new WebSocket(wsURL)
     ws.onmessage = (event) => {
