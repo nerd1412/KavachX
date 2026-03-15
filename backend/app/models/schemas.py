@@ -54,6 +54,7 @@ class GovernanceResult(BaseModel):
     policy_violations: List[Dict[str, Any]]
     risk_analysis: Optional[Dict[str, Any]] = {}
     explanation: ExplanationOutput
+    ai_response: Optional[str] = None
     timestamp: datetime
     processing_time_ms: float
 

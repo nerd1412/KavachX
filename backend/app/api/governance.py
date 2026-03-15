@@ -10,6 +10,7 @@ from app.models.schemas import InferenceRequest, GovernanceResult
 from app.models.orm_models import InferenceEvent, AIModel
 from app.core.auth import require_permission
 from app.services.governance_service import governance_service
+from app.services.ai_response_service import ai_response_service
 
 router = APIRouter()
 
@@ -72,11 +73,21 @@ async def simulate_inference(request: InferenceRequest, db: AsyncSession = Depen
             await db.flush()  # assign id before FK reference
 
         # Delegate to Service Layer
-        return await governance_service.evaluate_inference(request, db, model, is_simulation=True)
+        result = await governance_service.evaluate_inference(request, db, model, is_simulation=True)
+
+        # Realistic Integration: Generate AI response if governance allows
+        # This replaces the 'Simulation' behavior with 'Production-Ready' behavior.
+        if result.enforcement_decision in [EnforcementDecision.PASS, EnforcementDecision.ALERT]:
+            prompt = str(request.input_data.get("prompt", ""))
+            result.ai_response = await ai_response_service.get_response(prompt, model.id)
+        
+        return result
 
     except Exception as e:
         import traceback
-        raise HTTPException(status_code=500, detail=f"Simulation Error: {str(e)} - {traceback.format_exc()}")
+        print(f"ERROR in simulate_inference: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Inference Error: {str(e)}")
 
 
 @router.get("/recent")

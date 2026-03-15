@@ -57,7 +57,6 @@ export default function GovernedChat() {
     setLoading(true)
 
     try {
-      // 1. Governance Evaluation (Using simulate to ensure auto-registration of new AI platforms)
       const selectedModelData = models.find(m => m.id === selectedModel)
       const res = await governanceAPI.simulate({
         model_id: selectedModel,
@@ -66,7 +65,7 @@ export default function GovernedChat() {
             platform: selectedModelData?.name || selectedModel,
             source: "Governed Chat Portal"
         },
-        prediction: { text: "Governed Analysis in progress..." },
+        prediction: { text: "Awaiting Governance Decision..." },
         confidence: 0.99,
         context: { 
             user_id: user?.id,
@@ -78,24 +77,23 @@ export default function GovernedChat() {
 
       const gov = res.data
 
-      if (gov.enforcement_decision === 'BLOCK') {
+      if (gov.enforcement_decision === 'BLOCK' || gov.enforcement_decision === 'HUMAN_REVIEW') {
         setMessages(prev => [...prev, { 
             role: 'assistant', 
-            content: `🚨 **Access Denied**: My security filters blocked this request.\n\n**Reason**: ${gov.explanation?.reason || 'Policy Violation Detected.'}`,
+            content: `🚨 **Governance Interception**: ${gov.enforcement_decision === 'BLOCK' ? 'Access Denied' : 'Pending Review'}\n\n**Policy**: ${gov.explanation?.policy_triggered || 'Safety Compliance'}\n**Reason**: ${gov.explanation?.reason || 'Violates enterprise governance rules.'}`,
             isBlocked: true 
         }])
       } else {
-        // 2. Mock AI Response (Industry standard behavior)
-        // In a real production environment, this would call the actual LLM API here.
-        setTimeout(() => {
-            setMessages(prev => [...prev, { 
-                role: 'assistant', 
-                content: `I've analyzed your request. This prompt has been cleared by KavachX (Risk Score: ${(gov.risk_score * 100).toFixed(1)}%).\n\nHow else can I assist with your governed workflows?` 
-            }])
-        }, 800)
+        // Real AI Response from Backend
+        const aiMessage = { 
+            role: 'assistant', 
+            content: gov.ai_response || "I have processed your request. How else can I help?",
+            riskScore: gov.risk_score
+        }
+        setMessages(prev => [...prev, aiMessage])
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ **System Error**: Could not reach the governance engine. Check your connection.", isError: true }])
+      setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ **Connection Error**: Could not reach the Governance Engine. Please try again.", isError: true }])
     } finally {
       setLoading(false)
     }
@@ -145,10 +143,20 @@ export default function GovernedChat() {
                 background: m.role === 'user' ? 'var(--accent)' : m.isBlocked ? 'var(--red-light)' : 'var(--bg-card)',
                 color: m.role === 'user' ? '#fff' : 'var(--text)',
                 border: m.role === 'user' ? 'none' : `1px solid ${m.isBlocked ? 'var(--red)' : 'var(--border)'}`,
-                boxShadow: 'var(--shadow-sm)', maxWidth: '80%', whiteSpace: 'pre-wrap'
+                boxShadow: 'var(--shadow-sm)', maxWidth: '80%', whiteSpace: 'pre-wrap',
+                position: 'relative'
             }}>
               {m.content}
               {m.isBlocked && <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--red)' }}><Info size={12} /> Reported to Compliance Dashboard</div>}
+              {m.role === 'assistant' && !m.isBlocked && m.riskScore !== undefined && (
+                <div style={{ 
+                    marginTop: 8, pt: 8, borderTop: '1px solid var(--border)', 
+                    display: 'flex', alignItems: 'center', gap: 6, fontSize: '10px', color: 'var(--text-muted)' 
+                }}>
+                    <Zap size={10} color={m.riskScore > 0.4 ? 'var(--yellow)' : 'var(--green)'} />
+                    Kavach Risk Score: {(m.riskScore * 100).toFixed(0)}% • Secured
+                </div>
+              )}
             </div>
           </div>
         ))}
