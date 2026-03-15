@@ -14,6 +14,7 @@ from app.modules.fairness_monitor import FairnessMonitor
 from app.modules.explainability import ExplainabilityEngine
 from app.modules.risk_scorer import RiskScorer
 from app.modules.safety_scanner import SafetyScanner
+from app.services.debug_logger import debug_logger
 
 
 class GovernanceService:
@@ -35,6 +36,7 @@ class GovernanceService:
         try:
             return await self._evaluate_internal(request, db, model, is_simulation)
         except Exception as e:
+            debug_logger.log("evaluate_inference", "ERROR", error=str(e), details={"traceback": traceback.format_exc()})
             print(f"🛑 CRITICAL GOVERNANCE FAILURE: {str(e)}")
             print(traceback.format_exc())
             raise e
@@ -46,6 +48,7 @@ class GovernanceService:
         model: AIModel,
         is_simulation: bool = False
     ) -> GovernanceResult:
+        debug_logger.log("inference_evaluation", "START", details={"model_id": model.id, "simulation": is_simulation})
         start_time = time.time()
         
         # Ensure context and input_data are dicts
@@ -303,9 +306,11 @@ class GovernanceService:
 
         try:
             await db.commit()
+            debug_logger.log("database_commit", "SUCCESS", details={"inference_id": inference_id})
             print(f"DEBUG: Database commit SUCCESS for {inference_id}")
         except Exception as e:
             await db.rollback()
+            debug_logger.log("database_commit", "FAILED", error=str(e))
             print(f"DEBUG: Database commit FAILED: {str(e)}")
             raise e
         

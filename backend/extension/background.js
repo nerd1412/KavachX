@@ -106,7 +106,19 @@ async function processGovernance(prompt, domain, retryCount = 0) {
         });
 
         if (!response.ok) {
-            console.error(`❌ Kavach Engine Error: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error(`❌ Kavach Engine Error: ${response.status} ${response.statusText} - ${errorText}`);
+            
+            // Log to local storage for debug visibility if needed
+            const errorLog = {
+                timestamp: new Date().toISOString(),
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+                payload: payload
+            };
+            chrome.storage.local.set({ last_error: errorLog });
+
             // If it's a 503 (Render sleeping) or connection issue, retry once
             if ((response.status >= 500 || response.status === 404) && retryCount < 1) {
                 console.log("🔄 Retrying connection to Kavach...");

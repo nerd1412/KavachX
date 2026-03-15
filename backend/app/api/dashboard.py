@@ -10,6 +10,7 @@ router = APIRouter()
 
 
 from app.db.cache import dashboard_cache
+from app.services.debug_logger import debug_logger
 
 @router.get("/stats")
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
@@ -102,3 +103,7 @@ async def get_compliance_summary():
         {"framework": "RBI Fairness", "score": 91, "status": "compliant"},
         {"framework": "NIST AI RMF", "score": 69, "status": "partial"},
     ]
+
+@router.get("/debug-logs")
+async def get_debug_logs(limit: int = 50):
+    return debug_logger.get_recent_logs(limit=limit)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
-import { modelsAPI, governanceAPI } from '../utils/api'
+import { modelsAPI, governanceAPI, dashboardAPI, BASE } from '../utils/api'
 import { Database, Cpu, CheckCircle, AlertCircle } from 'lucide-react'
 
 function cssVar(name) {
@@ -62,22 +62,25 @@ export default function EngineerDashboard() {
   const [inferences, setInferences] = useState([])
   const [stats, setStats] = useState({ total_inferences: 0, blocked_count: 0, alert_count: 0, active_models: 0 })
   const [loading, setLoading] = useState(true)
+  const [debugLogs, setDebugLogs] = useState([])
   const col = useChartColors()
 
   useEffect(() => {
     const load = async () => {
       try {
         console.log("🛡️ KavachX: Fetching dashboard data...");
-        const [m, inf, s] = await Promise.all([
+        const [m, inf, s, dl] = await Promise.all([
           modelsAPI.list(),
           governanceAPI.getInferences({ limit: 30 }),
           dashboardAPI.getStats(),
+          dashboardAPI.getDebugLogs({ limit: 20 }),
         ])
         console.log("🛡️ KavachX Received Inferences:", inf.data?.length);
         console.log("🛡️ KavachX Received Stats:", s.data);
         if (m.data) setModels(m.data)
         if (inf.data) setInferences(inf.data)
         if (s.data) setStats(s.data)
+        if (dl.data) setDebugLogs(dl.data)
       } catch (err) {
         console.error("Failed to load engineer dashboard data:", err)
       } finally {
@@ -88,10 +91,10 @@ export default function EngineerDashboard() {
     const iv = setInterval(load, 5000)
     
     // Live WebSocket connection
-    const apiBase = import.meta.env.VITE_API_URL || '/api/v1'
-    const absoluteApiBase = apiBase.startsWith('http') ? apiBase : `${window.location.origin}${apiBase}`
+    const absoluteApiBase = BASE.startsWith('http') ? BASE : `${window.location.origin}${BASE}`
     const wsBase = absoluteApiBase.replace(/^http/, 'ws').replace('/api/v1', '')
     const wsURL = `${wsBase}/api/v1/ws/stream`
+    console.log(`[KavachX] Connecting to WebSocket: ${wsURL}`);
     const ws = new WebSocket(wsURL)
     ws.onmessage = (event) => {
       try {
@@ -266,6 +269,28 @@ export default function EngineerDashboard() {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ── System Debug Logs ── */}
+      <div className="card" style={{ marginTop: '20px', border: '1px solid var(--red-light)' }}>
+        <div className="card-header" style={{ background: 'rgba(239, 68, 68, 0.05)' }}>
+          <span className="card-title" style={{ color: 'var(--red)' }}>System Debug Logs</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Real-time Trace</span>
+        </div>
+        <div style={{ padding: '0 15px', maxHeight: '300px', overflowY: 'auto', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+          {debugLogs.length === 0 && (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No debug logs available. Trigger an event to see logs.</div>
+          )}
+          {debugLogs.map((log, i) => (
+            <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', gap: '15px' }}>
+              <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>[{log.timestamp}]</span>
+              <span style={{ fontWeight: 'bold', color: log.status === 'ERROR' ? 'var(--red)' : 'var(--accent)', width: '120px' }}>{log.action}</span>
+              <span style={{ color: 'var(--text)', flex: 1 }}>
+                {log.status}: {log.error || (log.details ? JSON.stringify(log.details) : 'N/A')}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

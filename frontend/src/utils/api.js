@@ -1,8 +1,7 @@
 import axios from 'axios'
 
-const isProd = import.meta.env.PROD
-// Monolithic deployment: API is served from the same origin under /api/v1
-const BASE = import.meta.env.VITE_API_URL || '/api/v1'
+const PROD_URL = "https://kavachx-platform.onrender.com/api/v1"
+export const BASE = import.meta.env.VITE_API_URL || PROD_URL
 console.log(`[KavachX] API Base: ${BASE}`);
 
 export const api = axios.create({
@@ -34,6 +33,7 @@ export const dashboardAPI = {
   getRiskTrend: (h = 24) => api.get(`/dashboard/risk-trend?hours=${h}`),
   getEnforcementBreakdown: () => api.get('/dashboard/enforcement-breakdown'),
   getComplianceSummary: () => api.get('/dashboard/compliance-summary'),
+  getDebugLogs: (params) => api.get('/dashboard/debug-logs', { params }),
 }
 
 export const modelsAPI = {

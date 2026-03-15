@@ -12,21 +12,14 @@
 
     const findPrompt = () => {
         const selectors = [
-            '#prompt-textarea',                              // ChatGPT
-            'div[contenteditable="true"][aria-label*="Prompt"]', // Gemini / Claude
-            'div[contenteditable="true"][role="textbox"]',    // Rich editors
-            'textarea[placeholder*="Message"]',              // ChatGPT alt
-            '.ProseMirror',                                  // Claude
-            'textarea[placeholder*="Talk to"]',              // Gemini Alt
-            '#editable-content-area',                         // Gemini Alt 2
-            '.ql-editor',                                    // Various AI editors
-            'textarea[placeholder*="Ask"]', 
-            'textarea[placeholder*="Type"]', 
-            'textarea[placeholder*="Send"]',
-            'div[data-placeholder*="Prompt"]',
-            'div[data-placeholder*="Message"]',
-            'div[aria-placeholder*="Prompt"]',
-            'textarea', 'input[type="text"]'
+            '#prompt-textarea',                               // ChatGPT
+            'div[contenteditable="true"][aria-label*="Prompt"]',// Gemini / Claude
+            'div[contenteditable="true"][role="textbox"]',     // Generic editors
+            '.ProseMirror',                                   // Claude / Others
+            'textarea[placeholder*="Message"]',               // Variations 
+            'textarea[placeholder*="Talk to"]',
+            '#editable-content-area',
+            'textarea'
         ];
         
         for (const s of selectors) {
@@ -36,7 +29,7 @@
                 // For contenteditable, we need innerText. For textarea, we need value.
                 const val = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' ? el.value : el.innerText).trim();
                 // Filter out very short strings or UI buttons
-                if (val.length > 2 && !/^(Send|Message|Ask)$/i.test(val)) {
+                if (val.length > 2 && !/^(Send|Message|Ask|Submit)$/i.test(val)) {
                     return { text: val, element: el };
                 }
             }
@@ -80,9 +73,9 @@
         console.log(`🛡️ KavachX: Intercepting ${type} for validation: "${promptData.text.substring(0, 50)}..."`);
         isValidating = true;
 
-        // stop the original event
+        // stop the original event to validate
         e.preventDefault();
-        e.stopPropagation();
+        // e.stopPropagation(); 
 
         try {
             chrome.runtime.sendMessage({ 
@@ -114,10 +107,11 @@
                     } else if (type === 'keydown') {
                         // For modern React/Next.js apps like Gemini/ChatGPT
                         const promptEl = promptData.element;
-                        const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                        const enterUp = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                        promptEl.dispatchEvent(enterDown);
-                        promptEl.dispatchEvent(enterUp);
+                        promptEl.focus(); 
+                        const enterEv = new KeyboardEvent('keydown', { 
+                            key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true 
+                        });
+                        promptEl.dispatchEvent(enterEv);
                     }
                     setTimeout(() => { bypassValidation = false; }, 200);
                 }
