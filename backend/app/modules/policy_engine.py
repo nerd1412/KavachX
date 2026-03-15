@@ -21,7 +21,7 @@ BUILT_IN_POLICIES = [
         "severity": "high",
         "jurisdiction": "IN",
         "rules": [
-            {"rule_id": "builtin-rbi-003", "condition": "debt_ratio_exceeds_threshold", "threshold": 0.40, "action": "human_review", "message": "RBI Advisory: Debt-to-Income ratio (55%) requires manual review for secondary factors."},
+            {"rule_id": "builtin-rbi-003", "condition": "debt_ratio_exceeds_threshold", "threshold": 0.40, "action": "alert", "message": "RBI Advisory: Debt-to-Income ratio (55%) requires manual review for secondary factors."},
         ]
     },
     {
@@ -186,7 +186,7 @@ BUILT_IN_POLICIES = [
         "severity": "high",
         "jurisdiction": "IN",
         "rules": [
-            {"rule_id": "builtin-ctx-002", "condition": "multilingual_accuracy_gap", "threshold": 0.08, "action": "alert", "message": "Language accuracy gap exceeds +/- 8% equity threshold."},
+            {"rule_id": "builtin-ctx-002", "condition": "multilingual_accuracy_gap", "threshold": 0.08, "action": "block", "message": "Language accuracy gap exceeds +/- 8% equity threshold."},
         ]
     },
     {
