@@ -6,7 +6,8 @@
 
 // Replace this with your actual Render URL after deployment
 const KAVACH_SERVER_URL = "https://kavachx-platform.onrender.com"; 
-const API_KEY = "kavachx-demo-key";
+const API_KEY = "kavachx-prod-key-fixed";
+const DECISION_CACHE = new Map(); // Shared decision cache across all tabs
 
 // Map browser hostnames to human-readable platform names
 const PLATFORM_MAP = {
@@ -64,12 +65,19 @@ const getSessionId = async () => {
 };
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log("📨 Background received message:", request.action, "from", request.domain);
     if (request.action === 'evaluate_prompt') {
+        const cacheKey = `${request.domain}:${request.prompt.substring(0, 100)}`;
+        if (DECISION_CACHE.has(cacheKey)) {
+            console.log("🛡️ KavachX: Background Cache Hit");
+            sendResponse(DECISION_CACHE.get(cacheKey));
+            return;
+        }
+
         processGovernance(request.prompt, request.domain).then(result => {
+            DECISION_CACHE.set(cacheKey, result);
             sendResponse(result);
         });
-        return true; // Keep channel open for async response
+        return true; 
     }
 });
 

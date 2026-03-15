@@ -200,6 +200,7 @@ class GovernanceService:
             "policy_triggered": policy_name,
             "decision": final_decision.value,
             "platform": platform,
+            "browser_domain": request.context.get("browser_source", "unknown"),
             "session_id": request.session_id,
             "violations": [v.get("policy_name") for v in policy_violations],
             "fairness_flags": len(fairness_flags), 
