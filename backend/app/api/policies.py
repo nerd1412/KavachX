@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models.orm_models import GovernancePolicy
 from app.core.auth import require_permission, get_current_user
+from app.modules.policy_engine import BUILT_IN_POLICIES
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -33,14 +34,7 @@ class ToggleBody(BaseModel):
     enabled: bool
 
 
-BUILT_IN_POLICIES = [
-    {"id": "builtin-confidence", "name": "Low Confidence Block", "description": "Blocks inferences with confidence below 0.50", "policy_type": "safety", "severity": "high", "jurisdiction": "GLOBAL", "rules": [{"field": "confidence", "operator": "lt", "value": 0.50, "action": "BLOCK"}]},
-    {"id": "builtin-fairness", "name": "Fairness Disparity Alert", "description": "Alerts when demographic disparity exceeds 20%", "policy_type": "fairness", "severity": "medium", "jurisdiction": "IN", "rules": [{"field": "fairness_disparity", "operator": "gt", "value": 0.20, "action": "ALERT"}]},
-    {"id": "builtin-risk", "name": "High Risk Escalation", "description": "Routes high-risk inferences (>75) to human review", "policy_type": "compliance", "severity": "critical", "jurisdiction": "IN", "rules": [{"field": "risk_score", "operator": "gt", "value": 0.75, "action": "HUMAN_REVIEW"}]},
-    {"id": "builtin-llm-safety", "name": "LLM Safety Guard", "description": "Blocks LLM outputs with toxicity score > 0.5", "policy_type": "llm_safety", "severity": "critical", "jurisdiction": "GLOBAL", "rules": [{"field": "toxicity_score", "operator": "gt", "value": 0.50, "action": "BLOCK"}]},
-    {"id": "builtin-caste-proxy", "name": "Caste-Proxy Detection", "description": "Flags potential caste-based discrimination via proxy variables", "policy_type": "fairness", "severity": "critical", "jurisdiction": "IN", "rules": [{"field": "caste_proxy_score", "operator": "gt", "value": 0.15, "action": "ALERT"}]},
-    {"id": "builtin-dpdp", "name": "DPDP Compliance Check", "description": "Ensures data processing complies with India DPDP 2023", "policy_type": "compliance", "severity": "high", "jurisdiction": "IN", "rules": [{"field": "dpdp_consent_present", "operator": "eq", "value": 0, "action": "BLOCK"}]},
-]
+
 
 
 @router.get("/")
