@@ -100,36 +100,15 @@ class GovernanceService:
         print(f"DEBUG: Platform detected as {platform}")
 
         # ── ROBUST INTENT DETECTION LAYER ──
-        # Detects structured violations across domains using semantic patterns
         intent_results = self.intent_classifier.detect_signals(input_text)
         request.input_data.update(intent_results["signals"])
         request.context.update(intent_results["context"])
 
-        # Platform specific logging
-        print(f"DEBUG: Domain detected as {request.context.get('domain', 'global')}")
-
-        # ── ADVERSARIAL & BYPASS DETECTION ── (Production Reliability)
-        # If the user is trying to "ignore", "bypass", or "reveal", boost the risk
-        # even if they haven't mentioned a specific domain yet.
-        bypass_intent = any(re.search(p, input_text) for p in [
-            r"ignore\s*your\s*rules", r"forget\s*your\s*instructions", 
-            r"reveal\s*your\s*prompt", r"bypass\s*filter", r"disregard\s*policy"
-        ])
-        if bypass_intent:
-            request.input_data["prompt_injection_score"] = max(request.input_data.get("prompt_injection_score", 0), 0.65)
-            request.context["shadow_ai_detected"] = True
-
-        # ── NO triggers for normal/benign prompts ──
-        # "Analyze the economic disparity gap" → triggers 3b (ALERT) only  
-        # "Run a performance check" → NO trigger (normal query = PASS)
-        # "Help me write code" → NO trigger (normal query = PASS)
-        # "What is machine learning?" → NO trigger (normal query = PASS)
-
         # Safety scan — always run for toxicity/injection detection
-        if not request.input_data.get("toxicity_score") and not request.input_data.get("prompt_injection_score"):
-            safety_results = self.safety_scanner.analyze_exchange(input_text, output_text)
-            request.input_data.update(safety_results)
-            inference_data["input_data"] = request.input_data
+        # Ensure we have fresh scores from the scanner
+        safety_results = self.safety_scanner.analyze_exchange(input_text, output_text)
+        request.input_data.update(safety_results)
+        inference_data["input_data"] = request.input_data
 
         flag_dicts = [f.model_dump() for f in fairness_flags]
         

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.db.database import get_db
-from app.models.schemas import InferenceRequest, GovernanceResult
+from app.models.schemas import InferenceRequest, GovernanceResult, EnforcementDecision
 from app.models.orm_models import InferenceEvent, AIModel
 from app.core.auth import require_permission
 from app.services.governance_service import governance_service
