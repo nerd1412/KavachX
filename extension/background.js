@@ -5,7 +5,7 @@
  */
 
 // Replace this with your actual Render URL after deployment
-const KAVACH_SERVER_URL = "https://kavachx-platform.onrender.com"; 
+const KAVACH_SERVER_URL = "https://kavachx-gaas.onrender.com"; 
 const API_KEY = "kavachx-demo-key";
 
 // Map browser hostnames to human-readable platform names
@@ -41,7 +41,7 @@ function getPlatformName(hostname) {
     return hostname || "Universal AI";
 }
 
-// const KAVACH_URL = "https://kavachx-platform.onrender.com/api/v1/governance/evaluate";
+// const KAVACH_URL = "https://kavachx-gaas.onrender.com/api/v1/governance/evaluate";
 let sessionId = null;
 
 // Initialize session ID on startup

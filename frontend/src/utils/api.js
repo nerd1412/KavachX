@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const PROD_URL = "https://kavachx-platform.onrender.com/api/v1"
+const PROD_URL = "https://kavachx-gaas.onrender.com/api/v1"
 export const BASE = import.meta.env.VITE_API_URL || PROD_URL
 console.log(`[KavachX] API Base: ${BASE}`);
 

@@ -6,7 +6,7 @@ import asyncio
 import httpx
 import random
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://kavachx-gaas.onrender.com"
 
 DEMO_MODELS = [
     {"name": "credit-scoring-v3", "version": "v3.1.0", "model_type": "classification", "owner": "ml-team@kavachx.ai", "description": "Credit risk scoring for loan applications"},
@@ -68,8 +68,8 @@ async def main():
                     print(f"  ⚠️  Inference failed: {e}")
 
         print(f"\n✨ Done! Seeded {len(model_ids)} models and {count} inferences.")
-        print("   Login at http://localhost:5173")
-        print("   API docs at http://localhost:8000/docs")
+        print("   Login at https://kavachx-gaas.onrender.com")
+        print("   API docs at https://kavachx-gaas.onrender.com/docs")
 
 
 if __name__ == "__main__":

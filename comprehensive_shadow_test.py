@@ -3,7 +3,7 @@ import time
 import uuid
 
 # Configuration
-TUNNEL_URL = "http://localhost:8000"
+TUNNEL_URL = "https://kavachx-gaas.onrender.com"
 ENDPOINT = f"{TUNNEL_URL}/api/v1/governance/evaluate"
 
 # Full Suite of 18+ Real-World Scenarios

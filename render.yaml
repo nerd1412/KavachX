@@ -15,4 +15,4 @@ services:
       - key: CORS_ORIGINS
         value: "*"
       - key: VITE_API_URL
-        value: "https://kavachx-platform.onrender.com/api/v1"
+        value: "https://kavachx-gaas.onrender.com/api/v1"

@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "Enterprise Governance for Browser AI Tools. Monitor and regulate ChatGPT, Claude, and Gemini usage.",
   "permissions": ["storage", "notifications"],
-  "host_permissions": ["<all_urls>", "https://kavachx-platform.onrender.com/*"],
+  "host_permissions": ["<all_urls>", "https://kavachx-gaas.onrender.com/*"],
   "background": {
     "service_worker": "background.js"
   },

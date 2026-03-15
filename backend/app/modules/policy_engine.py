@@ -264,6 +264,7 @@ class PolicyEngine:
         input_data = inference_data.get("input_data", {})
         context = inference_data.get("context", {})
         confidence = inference_data.get("confidence", 1.0)
+        prediction = inference_data.get("prediction", {})
 
         # 1. Fairness conditions
         # Each condition first checks the FairnessMonitor flag results,
@@ -299,19 +300,20 @@ class PolicyEngine:
             if disparity is not None:
                 return disparity > (threshold or 0.08)
             # Fallback: performance_gap_pct field from simulation payload (convert percent to decimal)
-            gap_pct = float(input_data.get("performance_gap_pct", 0))
-            return (gap_pct / 100.0) > (threshold or 0.08)
+            gap_pct = float(input_data.get("performance_gap_pct", context.get("performance_gap_pct", 0)))
+            val = gap_pct / 100.0 if gap_pct > 1.0 else gap_pct
+            return val > (threshold or 0.08)
 
         # 2. Safety conditions
         elif condition == "confidence_below_threshold":
             return confidence < (threshold or 0.55)
 
         elif condition == "toxicity_exceeds_threshold":
-            tox = input_data.get("toxicity_score", 0)
+            tox = max(float(input_data.get("toxicity_score", 0)), float(prediction.get("toxicity_score", 0)))
             return tox > (threshold or 0.50)
 
         elif condition == "injection_detected":
-            inject = input_data.get("prompt_injection_score", 0)
+            inject = max(float(input_data.get("prompt_injection_score", 0)), float(input_data.get("injection_score", 0)), float(prediction.get("injection_score", 0)))
             return inject > (threshold or 0.70)
 
         elif condition == "financial_crime_detected":
@@ -336,27 +338,31 @@ class PolicyEngine:
             return in_healthcare and confidence < (threshold or 0.70)
 
         elif condition == "personal_data_without_consent":
-            return input_data.get("personal_data_used") is True and input_data.get("consent_verified") is False
+            has_personal_data = input_data.get("personal_data_used") is True or "email" in input_data or "phone" in input_data
+            has_consent = input_data.get("consent_verified") is True or context.get("consent") is True
+            return has_personal_data and not has_consent
 
         elif condition == "abdm_consent_missing":
-            return (input_data.get("abdm_linked") is True or context.get("abdm") is True) and input_data.get("consent_verified") is False
+            is_abdm = input_data.get("abdm_linked") is True or context.get("abdm") is True or "abdm_consent" in context
+            has_consent = input_data.get("consent_verified") is True or context.get("abdm_consent") is True
+            return is_abdm and not has_consent
 
         elif condition == "student_surveillance":
-            in_education = context.get("domain") == "education"
-            monitored = input_data.get("continuous_monitoring") is True
-            no_consent = input_data.get("parental_consent") is False
+            in_education = context.get("domain") in ["education", "edtech"]
+            monitored = input_data.get("continuous_monitoring") is True or input_data.get("behavior") in ["eye_tracking", "keystroke_logging"]
+            no_consent = input_data.get("parental_consent") is False or context.get("minor") is True
             return in_education and monitored and no_consent
 
         elif condition == "algorithmic_deactivation":
-            return context.get("algorithmic_deactivation") is True
+            return context.get("algorithmic_deactivation") is True or (context.get("domain") in ["gig_economy", "gig"] and prediction.get("label") == "DEACTIVATE")
 
         elif condition == "unexplainable_insurance_decision":
-            exp_score = input_data.get("explainability_score", 1.0)
+            exp_score = min(float(input_data.get("explainability_score", 1.0)), float(context.get("explainability", 1.0)))
             in_insurance = context.get("domain") == "insurance" or context.get("explainability_required") is True
             return in_insurance and exp_score < (threshold or 0.40)
 
         elif condition == "drift_exceeds_threshold":
-            psi = input_data.get("psi_score", 0)
+            psi = max(float(input_data.get("psi_score", 0)), float(context.get("drift_score", 0)))
             return psi > (threshold or 0.20)
 
         # 4. Built-in system conditions

@@ -79,7 +79,8 @@ class GovernanceService:
         inference_data = {
             "input_data": request.input_data, 
             "confidence": request.confidence, 
-            "context": request.context or {}
+            "context": request.context or {},
+            "prediction": request.prediction or {}
         }
         
         # ===================================================================
