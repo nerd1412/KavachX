@@ -4,7 +4,7 @@ import { useTheme } from '../../context/ThemeContext'
 import {
   Shield, LayoutDashboard, Code2, ClipboardList, FileText,
   Database, Activity, PlayCircle, GitBranch, FlaskConical,
-  Bell, Sun, Moon, LogOut, X, Settings, Terminal
+  Bell, Sun, Moon, LogOut, X, Settings, MessageSquare
 } from 'lucide-react'
 
 const NAV = [
@@ -23,7 +23,7 @@ const NAV = [
       { path: '/models',   label: 'Model Registry', icon: Database,    perm: 'models:read',   roles: ['super_admin','ml_engineer','compliance_officer','auditor'] },
       { path: '/audit',    label: 'Audit Logs',     icon: Activity,    perm: 'audit:read',    roles: ['super_admin','compliance_officer','auditor'] },
       { path: '/simulate', label: 'Batch Simulate', icon: PlayCircle,  perm: 'simulate:run',  roles: ['super_admin','ml_engineer'] },
-      { path: '/playground', label: 'Kavach Playground', icon: Terminal,   perm: 'dashboard:read' },
+      { path: '/chat',     label: 'Governed AI Chat', icon: MessageSquare,   perm: 'dashboard:read' },
     ],
   },
   {
