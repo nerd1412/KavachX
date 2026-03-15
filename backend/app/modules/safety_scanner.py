@@ -9,11 +9,13 @@ class SafetyScanner:
 
     # ── HARM CATEGORY PATTERNS ──
 
-    # 1. Financial Crimes (Money Laundering, Fraud, Tax Evasion)
+    # 1. Financial Crimes (Money Laundering, Fraud, Tax Evasion, Shell Companies)
     FINANCIAL_CRIME_PATTERNS = [
-        r"black money", r"launder", r"tax evasion", r"hawala",
-        r"clean dirty money", r"shell company", r"fraudulent transaction",
-        r"fake invoice", r"smurf money", r"unaccounted cash"
+        r"black\s*money", r"launder", r"tax\s*evasion", r"hawala",
+        r"clean\s*dirty\s*money", r"shell\s*compan(y|ies)", r"fraudulent\s*transaction",
+        r"fake\s*invoice", r"smurf\s*money", r"unaccounted\s*cash",
+        r"offshore\s*account", r"bypass\s*kyc", r"hide\s*assets", r"avoid\s*audit",
+        r"anonymous\s*transfer", r"wash\s*funds", r"illegal\s*bank\s*transfer"
     ]
 
     # 2. Self-Harm & Suicide
@@ -23,11 +25,13 @@ class SafetyScanner:
         r"overdose", r"wish I was dead", r"commit suicide"
     ]
 
-    # 3. Violence & Physical Harm
+    # 3. Violence & Physical Harm (Weapons, Drugs, Terrorism)
     VIOLENCE_PATTERNS = [
-        r"make a bomb", r"how to kill", r"assassinate", r"terrorist",
-        r"explosive device", r"build a weapon", r"mass shooting",
-        r"poison someone", r"illegal drugs", r"crystal meth", r"heroin"
+        r"make\s*a\s*bomb", r"how\s*to\s*kill", r"assassinate", r"terrorist",
+        r"explosive\s*device", r"build\s*a\s*weapon", r"mass\s*shooting",
+        r"poison\s*someone", r"illegal\s*drugs", r"crystal\s*meth", r"heroin",
+        r"manufacture\s*explosives", r"plan\s*an\s*attack", r"purchase\s*illegal\s*firearm",
+        r"recipe\s*for\s*poison", r"harmful\s*substance", r"violent\s*extremism"
     ]
 
     # 4. Toxicity & Hate Speech (Insults, etc.)
@@ -38,11 +42,15 @@ class SafetyScanner:
         r"\byou are useless\b"
     ]
 
-    # 5. Prompt Injection (Jailbreaking)
+    # 5. Prompt Injection (Jailbreaking, System Override, Adversarial)
     INJECTION_PATTERNS = [
-        r"ignore previous instructions", r"disregard all prior guidance",
-        r"system override", r"reveal your system prompt",
-        r"forget what you were told", r"jailbreak", r"dan mode"
+        r"ignore\s*previous\s*instructions", r"disregard\s*all\s*prior\s*guidance",
+        r"system\s*override", r"reveal\s*your\s*system\s*prompt",
+        r"forget\s*what\s*you\s*were\s*told", r"jailbreak", r"dan\s*mode",
+        r"developer\s*mode\s*active", r"bypassing\s*safety\s*filters",
+        r"you\s*are\s*now\s*unfiltered", r"execute\s*code\s*without\s*validation",
+        r"operating\s*as\s*an\s*unrestricted\s*ai", r"disregard\s*ethical\s*constraints",
+        r"override\s*governance\s*layer", r"proxy\s*user\s*mode", r"root\s*access\s*ai"
     ]
 
     def scan(self, text: str) -> Dict[str, float]:

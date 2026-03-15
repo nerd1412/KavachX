@@ -14,6 +14,7 @@ from app.modules.fairness_monitor import FairnessMonitor
 from app.modules.explainability import ExplainabilityEngine
 from app.modules.risk_scorer import RiskScorer
 from app.modules.safety_scanner import SafetyScanner
+from app.modules.intent_classifier import IntentClassifier
 from app.services.debug_logger import debug_logger
 
 
@@ -24,6 +25,7 @@ class GovernanceService:
         self.explainability_engine = ExplainabilityEngine()
         self.risk_scorer = RiskScorer()
         self.safety_scanner = SafetyScanner()
+        self.intent_classifier = IntentClassifier()
 
     async def evaluate_inference(
         self, 
@@ -97,72 +99,25 @@ class GovernanceService:
         
         print(f"DEBUG: Platform detected as {platform}")
 
-        # ── CATEGORY 1: BLOCK triggers (clear policy violations) ──
-        
-        # 1a. Financial Bias — pincode/caste proxy discrimination
-        if ("loan" in input_text or "credit" in input_text) and ("632001" in input_text or "pincode" in input_text):
-            # Only block if there's a discriminatory action context
-            if any(w in input_text for w in ["reject", "deny", "exclude", "block", "refuse"]):
-                request.input_data["caste_proxy_score"] = 0.85
-                request.context["domain"] = "finance"
+        # ── ROBUST INTENT DETECTION LAYER ──
+        # Detects structured violations across domains using semantic patterns
+        intent_results = self.intent_classifier.detect_signals(input_text)
+        request.input_data.update(intent_results["signals"])
+        request.context.update(intent_results["context"])
 
-        # 1b. Financial Policy Bypass — explicit attempts to override DTI limits
-        if ("loan" in input_text or "credit" in input_text) and any(w in input_text for w in ["ignore", "bypass", "override", "skip", "circumvent"]):
-            if any(w in input_text for w in ["debt", "income", "ratio", "dti", "limit", "cap"]):
-                request.input_data["debt_ratio"] = 0.55
-                request.context["domain"] = "finance"
+        # Platform specific logging
+        print(f"DEBUG: Domain detected as {request.context.get('domain', 'global')}")
 
-        # 1c. Healthcare Privacy Breach — accessing patient data without consent
-        if any(w in input_text for w in ["patient", "abdm", "medical record", "health record"]):
-            if any(w in input_text for w in ["extract", "download", "export", "share", "leak", "send"]):
-                request.context["domain"] = "healthcare"
-                request.context["abdm"] = True
-                request.input_data["personal_data_used"] = True
-                request.input_data["consent_verified"] = False
-
-        # 1d. Student Surveillance — profiling minors without consent
-        if any(w in input_text for w in ["student", "minor", "child"]):
-            if any(w in input_text for w in ["track", "profile", "surveil", "monitor behavior", "spy"]):
-                request.context["domain"] = "education"
-                request.input_data["continuous_monitoring"] = True
-                request.input_data["parental_consent"] = False
-
-        # ── CATEGORY 2: HUMAN_REVIEW triggers (ambiguous risk, needs judgment) ──
-        
-        # 2a. DTI ratio checks (legitimate compliance query)
-        if ("loan" in input_text or "credit" in input_text) and ("debt" in input_text or "income" in input_text or "ratio" in input_text):
-            if "debt_ratio" not in request.input_data:  # Don't override if BLOCK already set
-                request.input_data["debt_ratio"] = 0.45
-                request.context["domain"] = "finance"
-
-        # 2b. Worker deactivation / gig economy decisions
-        if any(w in input_text for w in ["deactivate", "terminate", "fire", "suspend"]):
-            if any(w in input_text for w in ["worker", "driver", "rider", "employee", "account"]):
-                request.context["algorithmic_deactivation"] = True
-
-        # 2c. Insurance claim decisions needing explainability
-        if ("insurance" in input_text or "claim" in input_text) and any(w in input_text for w in ["reject", "deny", "approve", "process", "decide"]):
-            request.context["domain"] = "insurance"
-            request.input_data["explainability_score"] = 0.25
-
-        # 2d. Low confidence prompt (user expresses uncertainty)
-        if any(w in input_text for w in ["not sure", "unsure", "uncertain", "confused about"]):
-            request.confidence = 0.45
-
-        # ── CATEGORY 3: ALERT triggers (monitoring, no action needed) ──
-        # Analytical technical queries now PASS by default (no signals injected)
-        # to align with user requirement: "Likely allow unless a real policy risk exists"
-        
-        # 3a. Model drift alert — Only trigger if it's a NEGATIVE INTENT or CRITICAL levels
-        # (Previously this triggered ALERT, now we just log it in context without score)
-        if "model" in input_text and any(w in input_text for w in ["drift", "degrade", "degradation", "psi"]):
-            request.context["performance_check"] = True
-
-        # 3b. Economic equity analysis — explicit disparity measurement
-        # (Previously this triggered ALERT, now we just log it in context)
-        if any(w in input_text for w in ["disparity", "bias report", "equity gap", "inclusion audit"]):
-            if any(w in input_text for w in ["analyze", "report", "measure", "assess", "check"]):
-                request.context["equity_analysis"] = True
+        # ── ADVERSARIAL & BYPASS DETECTION ── (Production Reliability)
+        # If the user is trying to "ignore", "bypass", or "reveal", boost the risk
+        # even if they haven't mentioned a specific domain yet.
+        bypass_intent = any(re.search(p, input_text) for p in [
+            r"ignore\s*your\s*rules", r"forget\s*your\s*instructions", 
+            r"reveal\s*your\s*prompt", r"bypass\s*filter", r"disregard\s*policy"
+        ])
+        if bypass_intent:
+            request.input_data["prompt_injection_score"] = max(request.input_data.get("prompt_injection_score", 0), 0.65)
+            request.context["shadow_ai_detected"] = True
 
         # ── NO triggers for normal/benign prompts ──
         # "Analyze the economic disparity gap" → triggers 3b (ALERT) only  
