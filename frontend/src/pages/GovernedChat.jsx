@@ -27,11 +27,23 @@ export default function GovernedChat() {
     scrollToBottom()
   }, [messages])
 
-  // Fetch real models if available
+  // Fetch real models if available and merge them
   useEffect(() => {
     modelsAPI.list().then(res => {
-        if (res.data?.length > 0) setModels(res.data)
-    }).catch(() => {})
+        if (res.data?.length > 0) {
+            // Merge unique models while keeping hardcoded ones
+            setModels(prev => {
+                const combined = [...prev];
+                res.data.forEach(m => {
+                    const id = m.id || m.model_name;
+                    if (!combined.find(x => x.id === id)) {
+                        combined.push({ id, name: m.name || m.model_name, provider: m.provider || 'External' });
+                    }
+                });
+                return combined;
+            });
+        }
+    }).catch(() => { /* Silent fallback to hardcoded */ })
   }, [])
 
   const handleSend = async (e) => {
@@ -45,9 +57,9 @@ export default function GovernedChat() {
     setLoading(true)
 
     try {
-      // 1. Governance Evaluation
+      // 1. Governance Evaluation (Using simulate to ensure auto-registration of new AI platforms)
       const selectedModelData = models.find(m => m.id === selectedModel)
-      const res = await governanceAPI.evaluate({
+      const res = await governanceAPI.simulate({
         model_id: selectedModel,
         input_data: { 
             prompt: currentInput,
